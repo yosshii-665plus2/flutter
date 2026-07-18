@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+
 const double boxSize = 80;
 
 void main() {
@@ -63,14 +64,12 @@ class _BoxesState extends State<Boxes> {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      top: widget.top,
-      left: widget.left,
-      child: Container(
-        width: boxSize,
-        height: boxSize,
-        color: Colors.orange,
-      ),
+    // ここではPositionedを持たない。Positionedは呼び出し側（_TapBoxState）で
+    // Stackの直接の子として付ける必要があるので、ここではただの見た目だけ返す。
+    return Container(
+      width: boxSize,
+      height: boxSize,
+      color: Colors.orange,
     );
   }
 }
@@ -148,16 +147,21 @@ class _TapBoxState extends State<TapBox> {
       body: Stack(
         children: [
           for (final info in boxlist)
-            GestureDetector(
-              key: ObjectKey(info), // リストの中身が入れ替わってもStateを正しく対応させる
-              onTap: () {
-                if (!info.shin) {
-                  _removeBox(info);
-                } else {
-                  how_boxes(screenSize);
-                }
-              },
-              child: info,
+            Positioned(
+              // ← Positionedがここ、Stackの直接の子になった
+              top: info.top,
+              left: info.left,
+              child: GestureDetector(
+                key: ObjectKey(info), // リストの中身が入れ替わってもStateを正しく対応させる
+                onTap: () {
+                  if (!info.shin) {
+                    _removeBox(info);
+                  } else {
+                    how_boxes(screenSize);
+                  }
+                },
+                child: info,
+              ),
             ),
         ],
       ),
