@@ -89,11 +89,19 @@ class _TapBoxState extends State<TapBox> {
   }
 
   // タップ or タイムアウトでマスを1個消す共通処理
+  // タップ or タイムアウトでマスを1個消す共通処理
   void _removeBox(Boxes box) {
     if (!mounted) return;
     setState(() {
-      if (box.shin) counta = 0; // 本物を見逃したら最初からやり直し
-      boxlist.remove(box);
+      if (box.shin) {
+        // 🚨 本物がタイムアウト（見逃し）した場合
+        counta = 0; // 最初からやり直し
+        boxlist.clear(); // 画面に残っているニセモノも全部消す
+        how_boxes(MediaQuery.of(context).size); // 新しく箱を配置してリスタート！
+      } else {
+        // 🟢 ニセモノがタイムアウトした場合は、その箱だけを消す
+        boxlist.remove(box);
+      }
     });
   }
 
@@ -148,11 +156,11 @@ class _TapBoxState extends State<TapBox> {
         children: [
           for (final info in boxlist)
             Positioned(
-              // ← Positionedがここ、Stackの直接の子になった
+              key: ObjectKey(info), // ⭕️ ここに引っ越し！（超重要）
               top: info.top,
               left: info.left,
               child: GestureDetector(
-                key: ObjectKey(info), // リストの中身が入れ替わってもStateを正しく対応させる
+                // ❌ ここにあった key: は削除します
                 onTap: () {
                   if (!info.shin) {
                     _removeBox(info);
