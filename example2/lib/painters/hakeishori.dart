@@ -79,7 +79,6 @@ class _HakeiShoriState extends State<HakeiShori> {
 
   @override
   void dispose() {
-    widget.audioPlayer.stop();
     _listener1?.cancel();
     _listener2?.cancel();
 
