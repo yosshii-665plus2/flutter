@@ -17,12 +17,12 @@ class AudioApp extends StatefulWidget {
 }
 
 class HakeiState {
-  String filePath;
+  String? filePath;
   List<double> peaks;
   bool canPlaying;
-  double progress=0;
+  bool? stoped = false;
 
-  HakeiState({required this.filePath, required this.peaks, required this.canPlaying, this.progress = 0});
+  HakeiState({required this.filePath, required this.peaks, required this.canPlaying});
 }
 
 class _AudioAppState extends State<AudioApp> {
@@ -30,7 +30,7 @@ class _AudioAppState extends State<AudioApp> {
   final AudioPlayer _audioPlayer = AudioPlayer(); // オーディオプレーヤー本体
   bool _isPlaying = false;
   List<HakeiState> hakeiList = [];
-  HakeiState hakeiState = HakeiState(filePath: '', peaks: [], canPlaying: false);
+  HakeiState hakeiState = HakeiState(filePath: null, peaks: [], canPlaying: false);
 
   void initState() {
     super.initState();
@@ -66,7 +66,7 @@ class _AudioAppState extends State<AudioApp> {
         final peaks = extractPeaks(pcmData, 300);
 
         setState(() {
-          hakeiList.add(HakeiState(filePath: path, peaks: peaks, canPlaying: true, progress: 0.0));
+          hakeiList.add(HakeiState(filePath: path, peaks:  peaks, canPlaying: true));
         });
 
         await _audioPlayer.setSource(DeviceFileSource(path));

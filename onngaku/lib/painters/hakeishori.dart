@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'pcm_waveform_painter.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -20,14 +21,15 @@ class HakeiShori extends StatefulWidget{
 class _HakeiShoriState extends State<HakeiShori> {
 
   double _progress = 0.0; // 再生位置（0.0 〜 1.0）
-
+  StreamSubscription<Duration>? _listener1;
+  StreamSubscription<void>? _listener2;
 
   @override
   void initState() {
     super.initState();
 
     // 再生位置の変化を監視して波形のプログレスバーを更新
-    widget.audioPlayer.onPositionChanged.listen((position) async {
+    _listener1 = widget.audioPlayer.onPositionChanged.listen((position) async {
       final duration = await widget.audioPlayer.getDuration();
       if (duration != null && duration.inMilliseconds > 0) {
         if(widget.hakeistate.canPlaying) {
@@ -37,23 +39,50 @@ class _HakeiShoriState extends State<HakeiShori> {
         }
       }
     });
+
+    _listener2 = widget.audioPlayer.onPlayerComplete.listen((event) {
+      // 2. 再生終了時に実行したい処理をここに書く
+      setState(() {
+        _progress = 0.0; // 再生位置をリセット
+        widget.hakeiList.map((hakei) {
+          hakei.canPlaying = true; 
+          return hakei;
+        }).toList();
+      });
+    });
   }
 
   // 再生 / 一時停止のトグル
   Future<void> _togglePlay() async {
-    if (widget.hakeistate.filePath == []) return;
-    if(widget.hakeistate.canPlaying) {
+    String? _filePath=widget.hakeistate.filePath;
+    if (_filePath == null || _filePath.isEmpty) return;
+    
       if (widget.isPlaying) {
+        widget.hakeiList.map((hakei) {
+          if(!hakei.stoped!)
+          {
+            hakei.canPlaying = true; 
+          }
+          return hakei;
+          }).toList();
         await widget.audioPlayer.pause();
       } else {
-        await widget.audioPlayer.play(DeviceFileSource(widget.hakeistate.filePath));
+        widget.hakeiList.map((hakei) {
+           hakei.canPlaying = false; 
+           return hakei;
+           }).toList(); // 他の波形の再生を停止
+        widget.hakeistate.canPlaying = true;
+        await widget.audioPlayer.play(DeviceFileSource(_filePath));
       }
-    }
+    
   }
 
   @override
   void dispose() {
     widget.audioPlayer.stop();
+    _listener1?.cancel();
+    _listener2?.cancel();
+
     super.dispose();
   }
 
@@ -68,18 +97,26 @@ class _HakeiShoriState extends State<HakeiShori> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                      IconButton(
-                        iconSize:20,
-                        color: Colors.red,
-                        icon:Icon(Icons.delete),
-                        onPressed: () => widget.onRemove(widget.hakeistate),
-                      ),
-                      IconButton(
-                        iconSize: 20,
-                        color: Colors.cyanAccent,
-                        icon: Icon(widget.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill),
-                        onPressed: _togglePlay,
-                      )
+                        Checkbox(
+                          value: widget.hakeistate.stoped,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              widget.hakeistate.stoped = value;
+                            });
+                          },
+                        ),
+                        IconButton(
+                          iconSize:20,
+                          color: Colors.red,
+                          icon:Icon(Icons.delete),
+                          onPressed: () => widget.onRemove(widget.hakeistate),
+                        ),
+                        IconButton(
+                          iconSize: 20,
+                          color: Colors.cyanAccent,
+                          icon: Icon(widget.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill),
+                          onPressed: widget.hakeistate.canPlaying&&!(widget.hakeistate.stoped ?? false) ? _togglePlay : null,
+                        )
                     ])
                   ),
                   Stack(
@@ -92,7 +129,7 @@ class _HakeiShoriState extends State<HakeiShori> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: CustomPaint(
-                          painter: PcmWaveformPainter(widget.hakeistate.peaks),
+                          painter: PcmWaveformPainter(widget.hakeistate),
                         ),
                       ),
                       // 再生位置を示すバー（プレイヘッド）
