@@ -138,6 +138,11 @@ class _HakeiShoriState extends State<HakeiShori> {
           ]),
           Stack(
             children: [
+              Container(
+                width: widget.hakeistate.length/10,
+                height: 80,
+                color: Color.fromARGB(255, 33, 35, 46),
+              ),
               CustomPaint(
                 size: Size(widget.hakeistate.length/10, 80),
                 painter: PcmWaveformPainter(widget.hakeistate),

@@ -120,15 +120,18 @@ class _AudioAppState extends State<AudioApp> {
                 )
             ])
           ]),
-          Row(
-            children: [
-              Column(
-                crossAxisAlignment:CrossAxisAlignment.start,
+          Menuebutton(
+            pickAndProcess: _pickAndProcess
+          ),
+
+          Positioned(
+            left: 150,
+            top: 15,
+            child: Container(
+              width: 1000,
+              height: 128,
+              child: Row(
                 children: [
-                  Menuebutton(
-                    pickAndProcess: _pickAndProcess
-                  ),
-                  
                   // 波形表示エリア
                   for(hakeiState in hakeiList)...[
                     HakeiShori(
@@ -144,8 +147,10 @@ class _AudioAppState extends State<AudioApp> {
                       },
                     ),
                   ],
-              ]),
-          ])
+                ],
+              ),
+            )
+          )
       ])
     );
   }
