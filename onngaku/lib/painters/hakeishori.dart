@@ -6,20 +6,20 @@ import '../main.dart';
 
 
 class HakeiShori extends StatefulWidget{
-  final AudioPlayer audioPlayer;
   final HakeiState hakeistate;
   final List<HakeiState> hakeiList;
   final bool isPlaying;
   final Function(HakeiState) onRemove;
-  
+  final bool draged;
+
   
   const HakeiShori({
     super.key, 
-    required this.audioPlayer, 
     required this.hakeistate, 
     required this.hakeiList, 
     required this.isPlaying, 
     required this.onRemove
+    ,required this.draged
     });
 
   @override
@@ -27,27 +27,25 @@ class HakeiShori extends StatefulWidget{
 }
 
 class _HakeiShoriState extends State<HakeiShori> {
-
   double location=0.0;
-  Duration? duration=null;
   StreamSubscription<Duration>? _listener1;
   StreamSubscription<void>? _listener2;
+
 
   @override
   void initState() {
     super.initState();
 
-    // 再生位置の変化を監視して波形のプログレスバーを更新
-    _listener1 = widget.audioPlayer.onDurationChanged.listen((position) async {
-            duration = await widget.audioPlayer.getDuration();
-            if(widget.hakeistate.length!=duration?.inMilliseconds)
-            {
-              widget.hakeistate.length=duration?.inMilliseconds ?? 0;
-            }
+    _listener1 = widget.hakeistate.audioPlayer.onDurationChanged.listen((duration) async {
+      setState(() {
+        widget.hakeistate.length=duration.inMilliseconds;
+        _listener1?.cancel();
+      });
+            
     });
 
 
-    _listener2 = widget.audioPlayer.onPlayerComplete.listen((event) {
+    _listener2 = widget.hakeistate.audioPlayer.onPlayerComplete.listen((event) {
       // 2. 再生終了時に実行したい処理をここに書く
       setState(() {
         widget.hakeiList.map((hakei) {
@@ -71,14 +69,14 @@ class _HakeiShoriState extends State<HakeiShori> {
           }
           return hakei;
           }).toList();
-        await widget.audioPlayer.pause();
+        await widget.hakeistate.audioPlayer.pause();
       } else {
         widget.hakeiList.map((hakei) {
            hakei.canPlaying = false; 
            return hakei;
            }).toList(); // 他の波形の再生を停止
         widget.hakeistate.canPlaying = true;
-        await widget.audioPlayer.play(DeviceFileSource(_filePath));
+        await widget.hakeistate.audioPlayer.play(DeviceFileSource(_filePath));
       }
     
   }
@@ -96,8 +94,9 @@ class _HakeiShoriState extends State<HakeiShori> {
     return Container(
       height: 120,
       width: widget.hakeistate.length/10,
+      color: const Color.fromARGB(0, 50, 50, 50),
       child:Column( children: [ 
-        Row(
+        !widget.draged?Row(
           children: [
             IconButton(
               iconSize: 13,
@@ -133,22 +132,23 @@ class _HakeiShoriState extends State<HakeiShori> {
                   ),
                 )
               )
+            ),
+            Text(widget.hakeistate.filePath?.split(RegExp(r'[/\\]')).last??''),
+          ]):const SizedBox(
+            height: 4.5,
+          ),
+        Stack(children: [
+            Container(
+              width: widget.hakeistate.length/10,
+              height: 80,
+              color: Color.fromARGB(255, 33, 35, 46),
+            ),
+            CustomPaint(
+              size: Size(widget.hakeistate.length/10, 80),
+              painter: PcmWaveformPainter(widget.hakeistate),
             )
-            
-          ]),
-          Stack(
-            children: [
-              Container(
-                width: widget.hakeistate.length/10,
-                height: 80,
-                color: Color.fromARGB(255, 33, 35, 46),
-              ),
-              CustomPaint(
-                size: Size(widget.hakeistate.length/10, 80),
-                painter: PcmWaveformPainter(widget.hakeistate),
-              )
-            ],),
-        ])
+        ],),
+      ])
     );
   }
 }
