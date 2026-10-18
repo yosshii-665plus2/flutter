@@ -3,20 +3,18 @@ import '../main.dart';
 
 class PcmWaveformPainter extends CustomPainter {
   final List<double> peaks;
-  final bool canPlaying;
   final bool stoped;
   
-  PcmWaveformPainter(HakeiState hakeistate)
+  PcmWaveformPainter(HakeiState hakeistate,bool? stoped)
       : peaks = hakeistate.peaks,
-        canPlaying = hakeistate.canPlaying,
-        stoped = hakeistate.stoped ?? false;
+        stoped =stoped ?? false;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (peaks.isEmpty) return;
 
     final paint = Paint()
-      ..color = canPlaying && !stoped ? Colors.cyanAccent : Color.fromARGB(255, 87, 87, 87)
+      ..color = !stoped ? Colors.cyanAccent : Color.fromARGB(255, 87, 87, 87)
       ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round;
 

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'dart:typed_data';
 import 'dart:math';
 import 'package:ongaku/okiba/menuebutton.dart';
 import 'ffi/mp3_decoder.dart';
 import 'utils/audio_utils.dart';
 import 'painters/hakeishori.dart';
-import 'painters/rean.dart';
-import 'painters/reanshori.dart';
+import 'painters/reanback.dart';
 import 'package:flutter/gestures.dart';
+import 'painters/reanshori.dart';
 
 void main() {
   runApp(const MaterialApp(home: AudioApp()));
@@ -23,42 +24,46 @@ class AudioApp extends StatefulWidget {
 
 class HakeiState {
   String? filePath;
-  List<double> peaks;
-  bool canPlaying;
-  bool? stoped = false;
+  Float32List peaks;
   int length=0;
-  AudioPlayer audioPlayer;
+
+  HakeiState({required this.filePath, required this.peaks});
+}
+
+class ReanState {
+  HakeiState hakeistate;
+
+  ReanState({required this.hakeistate});
+}
+
+class PickupState{
+  HakeiState hakeistate;
+  AudioPlayer audioPlayer = AudioPlayer();
   Offset? realOffset=Offset.zero;
   Offset? newoffset=Offset.zero;
   Offset? dragOffset=Offset.zero;
   bool draged = false;
+  int reanNumber=-1;
 
-  HakeiState({required this.filePath, required this.peaks, required this.canPlaying, required this.audioPlayer});
+  PickupState({required this.hakeistate});
+}
+
+class Rean{
+  List<ReanState> reanStateList=[];
+  bool? locked = false;
+  
+
 }
 
 
 class _AudioAppState extends State<AudioApp> {
   final Mp3Decoder _decoder = Mp3Decoder();
   final AudioPlayer _audioPlayer = AudioPlayer(); // オーディオプレーヤー本体
-  bool _isPlaying = false;
   List<HakeiState> hakeiList = [];
+  List<PickupState> pickupList = [];
   double reanhight=100*pow(0.9,1).toDouble();
   final ScrollController _controller = ScrollController();
 
-
-
-  @override
-  void initState() {
-    super.initState();
-
-
-    // 再生状態の変化を監視
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      setState(() {
-        _isPlaying = state == PlayerState.playing;
-      });
-    });
-  }
 
   @override
   void dispose() {
@@ -83,26 +88,36 @@ class _AudioAppState extends State<AudioApp> {
 
       if (pcmData != null) {
         final peaks = extractPeaks(pcmData, 300);
-        final newHakeiState = HakeiState(filePath: path, peaks: peaks, canPlaying: true, audioPlayer: AudioPlayer());
-        setState(() {
-          hakeiList.add(newHakeiState);
-        });
+        final newHakeiState = HakeiState(filePath: path, peaks: peaks);
+        hakeiList.add(newHakeiState);
+        final newPick = PickupState(hakeistate: newHakeiState);
+        pickupList.add(newPick);
+        setState(() {});
 
         debugPrint('hakeiList.length = ${hakeiList.length}');
-        await newHakeiState.audioPlayer.setSource(DeviceFileSource(path));
+        await newPick.audioPlayer.setSource(DeviceFileSource(path));
         debugPrint(hakeiList.map((h) => h.length).toList().toString());
       }
     }
   }
 
-  HakeiState add_rean(){ {
-    HakeiState newHakeiState = HakeiState(filePath: null, peaks: [], canPlaying: true, audioPlayer:_audioPlayer);
-    return newHakeiState;
-  }}
+  ReanState _sethakei(PickupState pickupState){
+    ReanState reanState =ReanState(hakeistate: pickupState.hakeistate);
+
+    return reanState;
+  }
+
+  void restChecker(){
+    hakeiList.removeWhere(
+      (hakei) => !pickupList.any((pick) => pick.hakeistate == hakei)
+      && !reanList.any((rean) => rean.reanStateList.any((reanstate) => reanstate.hakeistate == hakei))
+    );
+  }
+
 
   double leftWidth=130;
   double topHight=140;
-  List<HakeiState> reanList=[];
+  List<Rean> reanList=[];
 
   @override
   Widget build(BuildContext context) {
@@ -136,14 +151,14 @@ class _AudioAppState extends State<AudioApp> {
                   ),
                   onPressed: () {
                     setState(() {
-                      reanList.add(add_rean());
+                      reanList.add(Rean());
                     });
                   },
                   child: const Icon(Icons.add,size:13),
                 ),
               ),
             ),
-            for( var (i,hakei)in reanList.indexed)
+            for( var (i,rean)in reanList.indexed)
             Row(
               children: [  
                 Container(
@@ -152,10 +167,10 @@ class _AudioAppState extends State<AudioApp> {
                   color: const Color(0xFF1E1E2E),
                   child:Row(children: [
                     Checkbox(
-                      value: hakei.stoped,
+                      value: rean.locked,
                       onChanged: (bool? value) {
                         setState(() {
-                          hakei.stoped = value;
+                          rean.locked = value;
                         });
                       },
                     ),
@@ -172,14 +187,9 @@ class _AudioAppState extends State<AudioApp> {
                 Stack(children:[
                   CustomPaint(
                     size: Size(max(screenSize.width-leftWidth,0), reanhight),
-                    painter: Rean(),
+                    painter: ReanBack(),
                   ),
-                  Reanshori(
-                    hakeiState: hakei,
-                    highth: reanhight,
-                    wideth: max(screenSize.width - leftWidth,0),
-                    reanList: reanList,
-                  ),
+                  Reanshori(rean: rean,size: Size(double.infinity, reanhight),),
                 ])
             ])
           ]),
@@ -209,35 +219,36 @@ class _AudioAppState extends State<AudioApp> {
                   child:ListView.builder(
                     controller: _controller,
                     clipBehavior: ((){
-                      bool _draged=hakeiList.any((_hakeiState) => _hakeiState.draged);
+                      bool _draged=pickupList.any((_hakeiState) => _hakeiState.draged);
                       if(_draged)
                       return Clip.none;
                       else
                       return Clip.hardEdge;
                     })(),
                     scrollDirection: Axis.horizontal,
-                    itemCount: hakeiList.length,
+                    itemCount: pickupList.length,
                     itemBuilder: (context, index) {
-                      final hakeiState = hakeiList[index];
+                      final pickupState = pickupList[index];
                       return Transform.translate(
-                        offset: hakeiState.dragOffset ?? const Offset(0, 0),
+                        offset: pickupState.dragOffset ?? const Offset(0, 0),
                         child: GestureDetector(
                           onPanStart:(details){
                             setState(() {
-                              hakeiState.draged=true;
+                              pickupState.draged=true;
                             });
                           },
                           onPanUpdate:(details){
-                            Offset realoffset = (hakeiState.realOffset ?? Offset.zero) + details.delta;
+                            Offset realoffset = (pickupState.realOffset ?? Offset.zero) + details.delta;
                             Offset newoffset=realoffset;
                             for(int i=0;i<reanList.length;i++){
                               if(realoffset.dy>topHight-15-reanhight+i*(reanhight) && realoffset.dy<topHight-15-reanhight+(i+1)*(reanhight)){
                                 newoffset=Offset(realoffset.dx,topHight-15+i*(reanhight));
+                                pickupState.reanNumber=i;
                               }
                             }
                             setState(() {
-                              hakeiState.realOffset = realoffset;
-                              hakeiState.dragOffset = reanList.length!=0?newoffset:realoffset;
+                              pickupState.realOffset = realoffset;
+                              pickupState.dragOffset = reanList.length!=0?newoffset:realoffset;
                             });
                           },
                           supportedDevices: const {
@@ -246,31 +257,36 @@ class _AudioAppState extends State<AudioApp> {
                             PointerDeviceKind.stylus,
                           },
                           onPanEnd:(details){
+                            if(pickupState.reanNumber!=-1){
+                              reanList[pickupState.reanNumber].reanStateList.add(_sethakei(pickupState));
+                            }
+
                             setState(() {
-                              hakeiState.realOffset = Offset.zero;
-                              hakeiState.dragOffset = Offset.zero;
-                              hakeiState.draged=false;
+                              pickupState.realOffset = Offset.zero;
+                              pickupState.dragOffset = Offset.zero;
+                              pickupState.draged=false;
+                              pickupState.reanNumber = -1;
                             });
                           },
                           onPanCancel:(){
                             setState(() {
-                              hakeiState.realOffset = Offset.zero;
-                              hakeiState.dragOffset = Offset.zero;
-                              hakeiState.draged=false;
+                              pickupState.realOffset = Offset.zero;
+                              pickupState.dragOffset = Offset.zero;
+                              pickupState.draged=false;
+                              pickupState.reanNumber = -1;
                             });
                           },
-                          child:HakeiShori(
-                            key: ObjectKey(hakeiState),
+                          child:PickHakeiShori(
+                            key: ObjectKey(pickupState),
                             hakeiList: hakeiList,
-                            hakeistate: hakeiState,
-                            isPlaying: _isPlaying,
-                            draged: hakeiState.draged,
-                            onRemove: (HakeiState state) async {
-                                await state.audioPlayer.stop();
-                                await state.audioPlayer.dispose();
-                              setState(() {
-                                hakeiList.remove(state);
-                              });
+                            pickupState: pickupState,
+                            draged: pickupState.draged,
+                            onRemove: (PickupState state) async {
+                              await state.audioPlayer.stop();
+                              await state.audioPlayer.dispose();
+                              pickupList.remove(state);
+                              restChecker();
+                              setState(() {});
                             },
                           ),
                         )

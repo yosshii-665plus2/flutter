@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class Rean extends CustomPainter{
+class ReanBack extends CustomPainter{
   
   @override
   void paint(Canvas canvas, Size size){

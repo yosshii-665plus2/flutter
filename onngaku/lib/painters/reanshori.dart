@@ -3,11 +3,10 @@ import 'package:ongaku/painters/pcm_waveform_painter.dart';
 import '../main.dart';
 
 class Reanshori extends StatefulWidget{
-  Reanshori({super.key, required this.hakeiState,required this.highth,required this.wideth,required this.reanList});
-  final HakeiState hakeiState;
-  final double highth;
-  final double wideth;
-  final List<HakeiState> reanList;
+  Reanshori({super.key,required Size this.size ,required Rean this.rean});
+  final Size size;
+  final Rean rean;
+
   @override
   State<Reanshori> createState() => _ReanshoriState();
 }
@@ -24,9 +23,14 @@ class _ReanshoriState extends State<Reanshori> {
   
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(widget.wideth, widget.highth),
-      painter:PcmWaveformPainter(widget.hakeiState),
-    );
+    return Stack(children: [
+      for(ReanState reanstate in widget.rean.reanStateList)
+      Positioned(
+        child:CustomPaint(
+          size: widget.size,
+          painter:PcmWaveformPainter(reanstate.hakeistate,widget.rean.locked),
+        ), 
+      )
+    ],);
   }
 }
