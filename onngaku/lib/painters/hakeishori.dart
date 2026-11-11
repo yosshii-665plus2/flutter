@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'pcm_waveform_painter.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -7,7 +8,7 @@ import '../main.dart';
 
 class PickHakeiShori extends StatefulWidget{
   final PickupState pickupState;
-  final List<HakeiState> hakeiList;
+  final List<PickupState> pickupList;
   final Function(PickupState) onRemove;
   final bool draged;
 
@@ -15,7 +16,7 @@ class PickHakeiShori extends StatefulWidget{
   const PickHakeiShori({
     super.key, 
     required this.pickupState, 
-    required this.hakeiList, 
+    required this.pickupList, 
     required this.onRemove
     ,required this.draged
     });
@@ -29,6 +30,7 @@ class _PickHakeiShoriState extends State<PickHakeiShori> {
   StreamSubscription<Duration>? _listener1;
   StreamSubscription<void>? _listener2;
   bool isPlaying=false;
+  bool safety=false;
 
 
   @override
@@ -70,13 +72,13 @@ class _PickHakeiShoriState extends State<PickHakeiShori> {
   }
 
 
-OverlayEntry? _overlayEntry;
-ValueNotifier<Offset> _mousePosition = ValueNotifier(Offset.zero);
-void _showOverlay(BuildContext context, String text) {
-
-  _hideOverlay();
-  _overlayEntry = OverlayEntry(
-    builder: (context) {
+  OverlayEntry? _overlayEntry;
+  ValueNotifier<Offset> _mousePosition = ValueNotifier(Offset.zero);
+  void _showOverlay(BuildContext context, String text) {
+    _hideOverlay();
+    if(widget.pickupList.any((element) => element.draged == true)) {return;} // ドラッグ中はオーバーレイを表示しない
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
         // 位置が更新された時だけ、この ValueListenableBuilder の中身だけが軽量再描画される
         return ValueListenableBuilder<Offset>(
           valueListenable: _mousePosition,
@@ -98,15 +100,16 @@ void _showOverlay(BuildContext context, String text) {
               ),
             ),
           ),
-    );}
-  );
-  Overlay.of(context).insert(_overlayEntry!);
-}
+        );
+      }
+    );
+    Overlay.of(context).insert(_overlayEntry!);
+  }
 
-void _hideOverlay() {
-  _overlayEntry?.remove();
-  _overlayEntry = null;
-}
+  void _hideOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
 
   @override
   void dispose() {
@@ -121,7 +124,7 @@ void _hideOverlay() {
   Widget build(BuildContext context) {
     return Container(
       height: 120,
-      width: widget.pickupState.hakeistate.length/10,
+      width: max(widget.pickupState.hakeistate.length / 10, 70.0),
       color: const Color.fromARGB(0, 50, 50, 50),
       child:Column( children: [ 
         !widget.draged?Row(
@@ -138,9 +141,17 @@ void _hideOverlay() {
               iconSize:13,
               padding: EdgeInsets.all(4),
               constraints: const BoxConstraints(), // 48x48 の最小サイズ制限を解除
-              color: Colors.red,
+              color:!safety ? Colors.red : null,
               icon:Icon(Icons.delete),
-              onPressed: () => widget.onRemove(widget.pickupState),
+              onPressed: () => !safety?widget.onRemove(widget.pickupState):null,
+            ),
+            IconButton(
+              iconSize:13,
+              padding: EdgeInsets.all(4),
+              constraints: const BoxConstraints(), // 48x48 の最小サイズ制限を解除
+              color: Colors.grey,
+              icon:Icon(safety == true ? Icons.lock : Icons.lock_open),
+              onPressed: () => setState(() => safety=!safety),
             ),
           ]):const SizedBox(
             height: 4.5,
@@ -149,6 +160,9 @@ void _hideOverlay() {
           onEnter: (_) => setState(() => _showOverlay(context,widget.pickupState.hakeistate.filePath?.split(RegExp(r'[/\\]')).last??'')),
           onExit: (_) => setState(() => _hideOverlay()),
           onHover: (event) {
+            if(_overlayEntry == null&& !widget.pickupList.any((element) => element.draged == true)) {
+              _showOverlay(context,widget.pickupState.hakeistate.filePath?.split(RegExp(r'[/\\]')).last??'');
+            }
             _mousePosition.value = event.position; // エリア内のローカル座標を取得
           },
           child:Stack(children: [
