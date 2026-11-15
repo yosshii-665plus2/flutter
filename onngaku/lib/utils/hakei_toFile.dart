@@ -13,9 +13,9 @@ class HakeiToFile {
     }
     String newfilepath="";
     if(hakeiData is PickupState||hakeiData is Rean){
-      Float32List float32List=hakeiData is PickupState?Changes.pushToFloat32List(hakeiData.hakeistate, hakeiData.changes):hakeiData.combiningRean();
+      Float32List float32List=hakeiData is PickupState?Change.pushToFloat32List(hakeiData.hakeistate, hakeiData.changes):hakeiData.combiningRean();
       Uint8List _audioBytes=Uint8List.fromList(float32List.buffer.asUint8List(float32List.offsetInBytes,float32List.lengthInBytes,),);
-      if()
+      if(false)
       {
         final tempDir = await getTemporaryDirectory();
         final file = File('${tempDir.path}/temp_audio.wav');

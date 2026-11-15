@@ -56,20 +56,20 @@ class _PickHakeiShoriState extends State<PickHakeiShori> {
   }
 
   // 再生 / 一時停止のトグル
-  Future<void> _togglePlay() async {
-    String? _filePath=widget.pickupState.hakeistate.filePath;
-    if (_filePath == null || _filePath.isEmpty) return;
+  // Future<void> _togglePlay() async {
+  //   String? _filePath=Changes;
+  //   if (_filePath == null || _filePath.isEmpty) return;
     
-      if (isPlaying) {
-        await widget.pickupState.audioPlayer.stop();
-        isPlaying=false;
-      } else {
-        await widget.pickupState.audioPlayer.play(DeviceFileSource(_filePath));
-        isPlaying=true;
-      }
-    if (!mounted) return;
-    setState(() {});
-  }
+  //     if (isPlaying) {
+  //       await widget.pickupState.audioPlayer.stop();
+  //       isPlaying=false;
+  //     } else {
+  //       await widget.pickupState.audioPlayer.play(DeviceFileSource(_filePath));
+  //       isPlaying=true;
+  //     }
+  //   if (!mounted) return;
+  //   setState(() {});
+  // }
 
 
   OverlayEntry? _overlayEntry;
@@ -135,7 +135,7 @@ class _PickHakeiShoriState extends State<PickHakeiShori> {
               constraints: const BoxConstraints(), // 48x48 の最小サイズ制限を解除
               color: Colors.cyanAccent,
               icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill),
-              onPressed:_togglePlay 
+              onPressed:null//_togglePlay
             ),
             IconButton(
               iconSize:13,
@@ -157,11 +157,11 @@ class _PickHakeiShoriState extends State<PickHakeiShori> {
             height: 4.5,
           ),
         MouseRegion(
-          onEnter: (_) => setState(() => _showOverlay(context,widget.pickupState.hakeistate.filePath?.split(RegExp(r'[/\\]')).last??'')),
+          onEnter: (_) => setState(() => _showOverlay(context,widget.pickupState.name)),
           onExit: (_) => setState(() => _hideOverlay()),
           onHover: (event) {
             if(_overlayEntry == null&& !widget.pickupList.any((element) => element.draged == true)) {
-              _showOverlay(context,widget.pickupState.hakeistate.filePath?.split(RegExp(r'[/\\]')).last??'');
+              _showOverlay(context,widget.pickupState.name);
             }
             _mousePosition.value = event.position; // エリア内のローカル座標を取得
           },

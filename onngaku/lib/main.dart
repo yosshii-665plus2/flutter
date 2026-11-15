@@ -11,6 +11,7 @@ import 'painters/reanback.dart';
 import 'package:flutter/gestures.dart';
 import 'change.dart';
 import 'utils/hakei_toFile.dart';
+import 'dart:convert';
 
 void main() {
   runApp(const MaterialApp(home: AudioApp()));
@@ -24,26 +25,35 @@ class AudioApp extends StatefulWidget {
 }
 
 class HakeiState {
-  String? filePath;
+  Float32List pcm;
   Float32List peaks;
+  int ID;
   int length=0;
 
-  HakeiState({required this.filePath, required this.peaks});
+  HakeiState({required this.peaks, required this.pcm,required this.ID});
 }
 
 class ReanState {
   HakeiState hakeistate;
-  List<Changes>changes=[];
+  List<Change>changes=[];
   int starttime;
   
 
   ReanState({required this.hakeistate,this.starttime=0});
+  Map<String,dynamic> toJson()
+  {
+    return {
+      'hakeistate':hakeistate.ID,
+      'changes':changes.map((change){change.toJson;}),
+      'starttime':starttime,
+    };
+  }
 }
 
 class PickupState{
-  String name="";
+  String name;
   HakeiState hakeistate;
-  List<Changes> changes=[];
+  List<Change> changes=[];
   AudioPlayer audioPlayer = AudioPlayer();
   Offset? realOffset=Offset.zero;
   Offset? newoffset=Offset.zero;
@@ -51,7 +61,7 @@ class PickupState{
   bool draged = false;
   int reanNumber=-1;
 
-  PickupState({required this.hakeistate});
+  PickupState({this.name="",required this.hakeistate});
 }
 
 class Rean{
@@ -61,26 +71,33 @@ class Rean{
   bool isPlaying=false;
 
   Float32List combiningRean(){
-    List<Float32List> _float32Lists=reanStateList.map((reanState){return Changes.pushToFloat32List(reanState.hakeistate, reanState.changes);}).toList();
+    List<Float32List> _float32Lists=reanStateList.map((reanState){return Change.pushToFloat32List(reanState.hakeistate, reanState.changes);}).toList();
     int end=0;
     for(int i=0;i<reanStateList.length;i++)
     {
-      if(end<(reanStateList[i].starttime+_float32Lists[i].length*1000/44100).round())
+      if(end<(reanStateList[i].starttime+_float32Lists[i].length*1000/44100/2).round())
       {
-        end=(reanStateList[i].starttime+_float32Lists[i].length*1000/44100).round();
+        end=(reanStateList[i].starttime+_float32Lists[i].length*1000/44100/2).round();
       }
     }
-    Float32List sum=Float32List(((10+end)*44100/1000).round());
+    Float32List sum=Float32List(((10+end)*44100*2/1000).round());
     for(int i=0;i<_float32Lists.length;i++)
     {
       for(int j=0;j<_float32Lists[i].length;j++)
       {
-        sum[j+(reanStateList[i].starttime*44100/1000).round()]+=_float32Lists[i][j];
+        sum[j+(reanStateList[i].starttime*44100*2/1000).round()]+=_float32Lists[i][j];
       }
     }
     return sum;
   }
 
+  List<Map<String,dynamic>> toJson()
+  {
+    return reanStateList.map((reanState)=>reanState.toJson()).toList();
+  }
+  // static Rean fromJson(){
+
+  // }
 }
 
 
@@ -101,6 +118,7 @@ class _AudioAppState extends State<AudioApp> {
     for (var player in _audioPlayers) {
       player.dispose();
     }
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -120,10 +138,12 @@ class _AudioAppState extends State<AudioApp> {
       debugPrint('decode result: ${pcmData == null ? "null (失敗)" : "${pcmData.length} サンプル"}');
 
       if (pcmData != null) {
-        final peaks = extractPeaks(pcmData, 300);
-        final newHakeiState = HakeiState(filePath: path, peaks: peaks);
+        final peaks = extractPeaks(pcmData, (pcmData.length/1350).round());
+        final newHakeiState = HakeiState(peaks: peaks,pcm: pcmData,ID:hakeiList.length);
         hakeiList.add(newHakeiState);
-        final newPick = PickupState(hakeistate: newHakeiState);
+        String _name=path.split(RegExp(r'[/\\]')).last;
+        while(pickupList.any((n)=>n.name==_name)){_name+='+';}
+        final newPick = PickupState(name:_name,hakeistate: newHakeiState);
         pickupList.add(newPick);
         setState(() {});
 
@@ -239,7 +259,7 @@ class _AudioAppState extends State<AudioApp> {
                             icon: const Icon(Icons.delete,color: Colors.red,size: 15),
                             onPressed: () {
                               setState(() {
-                                Changes.log();
+                                Change.log("derete "+jsonEncode(reanList[i].toJson()));
                                 reanList.removeAt(i);
                               });
                             },
@@ -314,9 +334,9 @@ class _AudioAppState extends State<AudioApp> {
                           onPanUpdate:(details){
                             Offset realoffset = (pickupState.realOffset ?? Offset.zero) + details.delta;
                             Offset newoffset=realoffset;
-                            for(int i=0;i<reanList.length;i++){
-                              if(realoffset.dy>topHight-15-reanhight+i*(reanhight) && realoffset.dy<topHight-15-reanhight+(i+1)*(reanhight)){
-                                newoffset=Offset(realoffset.dx,topHight-15+i*(reanhight));
+                            for(int i=(_scrollController.offset/reanhight).round();i<reanList.length;i++){
+                              if(realoffset.dy>topHight-15-reanhight+i*(reanhight)-_scrollController.offset && realoffset.dy<topHight-15-reanhight+(i+1)*(reanhight)-_scrollController.offset){
+                                newoffset=Offset(realoffset.dx,topHight-15+i*(reanhight)-_scrollController.offset);
                                 pickupState.reanNumber=i;
                               }
                             }
